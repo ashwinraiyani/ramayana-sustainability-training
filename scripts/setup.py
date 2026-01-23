@@ -12,11 +12,14 @@ def print_header(text):
     print(f"  {text}")
     print("="*60 + "\n")
 
-def run_command(command, description):
+def run_command(command, description, use_shell=True):
     """Run shell command with error handling"""
     print(f"⏳ {description}...")
     try:
-        subprocess.run(command, check=True, shell=True)
+        if isinstance(command, list):
+            subprocess.run(command, check=True, shell=False)
+        else:
+            subprocess.run(command, check=True, shell=use_shell)
         print(f"✅ {description} completed!\n")
         return True
     except subprocess.CalledProcessError as e:
@@ -55,26 +58,27 @@ def setup():
     if not check_python_version():
         sys.exit(1)
     
-    # Create virtual environment
+    # Create virtual environment using list format to handle spaces in path
     if not os.path.exists('venv'):
-        if not run_command(f"{sys.executable} -m venv venv", "Creating virtual environment"):
+        python_exe = sys.executable
+        if not run_command([python_exe, '-m', 'venv', 'venv'], "Creating virtual environment", use_shell=False):
             sys.exit(1)
     else:
         print("ℹ️  Virtual environment exists.\n")
     
     # Determine OS-specific commands
     if sys.platform == "win32":
-        pip_cmd = "venv\\Scripts\\pip"
-        python_cmd = "venv\\Scripts\\python"
+        pip_cmd = os.path.join('venv', 'Scripts', 'pip.exe')
+        python_cmd = os.path.join('venv', 'Scripts', 'python.exe')
     else:
-        pip_cmd = "venv/bin/pip"
-        python_cmd = "venv/bin/python"
+        pip_cmd = os.path.join('venv', 'bin', 'pip')
+        python_cmd = os.path.join('venv', 'bin', 'python')
     
-    # Install dependencies
-    if not run_command(f"{pip_cmd} install --upgrade pip", "Upgrading pip"):
+    # Install dependencies using list format
+    if not run_command([pip_cmd, 'install', '--upgrade', 'pip'], "Upgrading pip", use_shell=False):
         sys.exit(1)
     
-    if not run_command(f"{pip_cmd} install -r requirements.txt", "Installing dependencies"):
+    if not run_command([pip_cmd, 'install', '-r', 'requirements.txt'], "Installing dependencies", use_shell=False):
         sys.exit(1)
     
     # Create .env
@@ -90,13 +94,13 @@ def setup():
     # Ask about database initialization
     response = input("Initialize database now? (y/n): ")
     if response.lower() == 'y':
-        run_command(f"{python_cmd} scripts/init_database.py", "Initializing database")
+        run_command([python_cmd, 'scripts/init_database.py'], "Initializing database", use_shell=False)
     
     print_header("Setup Completed Successfully!")
     print("\n📝 Next Steps:\n")
     print("1. Update .env with your credentials")
-    print("2. Start backend: uvicorn backend.main:app --reload")
-    print("3. Start frontend: streamlit run frontend/app.py\n")
+    print(f"2. Start backend: {python_cmd} -m uvicorn backend.main:app --reload")
+    print(f"3. Start frontend: {python_cmd} -m streamlit run frontend/app.py\n")
     print("="*60)
 
 if __name__ == '__main__':
